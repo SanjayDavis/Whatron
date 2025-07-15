@@ -1,0 +1,63 @@
+{
+  "name": "whatsapp-electron",
+  "version": "1.0.0",
+  "description": "A free and open unofficial WhatsApp desktop client for Linux",
+  "author": {
+    "name": "Sanjay Davis",
+    "email": "psanjuknl@gmail.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/SanjayDavis/Whatsapp_Electron",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux",
+    "dist:docker": "docker run --rm -ti -v ${PWD}:/project -v ${PWD}/.cache:/root/.cache/electron -v ${PWD}/.config:/root/.config/electron -w /project electronuserland/builder:latest /bin/bash -c \"rm -rf node_modules package-lock.json && npm install && npm run dist\""
+  },
+  "dependencies": {
+    "auto-launch": "^5.0.5",
+    "electron-store": "^9.0.0"
+  },
+  "devDependencies": {
+    "electron": "^37.2.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.sanjaydavis.whatsapp-electron",
+    "productName": "Unofficial WhatsApp",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/electron-builder",
+      "!node_modules/**/electron-updater",
+      "!node_modules/**/electron-debug"
+    ],
+    "linux": {
+      "target": [
+        "rpm",
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "icon": "icon.png",
+      "artifactName": "whatsapp_electron-${version}.${ext}",
+      "desktop": {
+        "StartupNotify": "false",
+        "Encoding": "UTF-8",
+        "MimeType": "x-scheme-handler/whatsapp;"
+      }
+    },
+    "rpm": {
+      "fpm": [
+        "--iteration=1"
+      ]
+    },
+    "deb": {
+      "fpm": [
+        "--iteration=1"
+      ]
+    }
+  }
+}
