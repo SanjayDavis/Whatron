@@ -11,9 +11,9 @@ A lightweight, unofficial WhatsApp Web desktop client built with Electron for Li
 
 > ⚠️ This is not affiliated with WhatsApp or Meta. It wraps https://web.whatsapp.com in a native shell.
 
-## 📦 Download
+##  Download
 
-[👉 Get the latest release here](https://github.com/SanjayDavis/Whatsapp_Electron/releases)
+[Get the latest release here](https://github.com/SanjayDavis/Whatsapp_Electron/releases)
 
 ##  Run Locally
 
