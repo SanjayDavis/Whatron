@@ -12,15 +12,18 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --linux",
+    "dist:win": "electron-builder --win",
     "dist:docker": "docker run --rm -ti -v ${PWD}:/project -v ${PWD}/.cache:/root/.cache/electron -v ${PWD}/.config:/root/.config/electron -w /project electronuserland/builder:latest /bin/bash -c \"rm -rf node_modules package-lock.json && npm install && npm run dist\""
   },
   "dependencies": {
     "auto-launch": "^5.0.5",
-    "electron-store": "^9.0.0"
+    "electron-store": "^8.1.0"
   },
   "devDependencies": {
     "electron": "^37.2.1",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "png-to-ico": "^3.0.1",
+    "to-ico": "^1.1.5"
   },
   "build": {
     "appId": "com.sanjaydavis.whatsapp-electron",
@@ -41,7 +44,7 @@
         "deb"
       ],
       "category": "Network",
-      "icon": "icon.png",
+      "icon": "icon_upscaled.png",
       "artifactName": "whatsapp_electron-${version}.${ext}",
       "desktop": {
         "StartupNotify": "false",
@@ -58,6 +61,19 @@
       "fpm": [
         "--iteration=1"
       ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "icon.ico",
+      "artifactName": "whatsapp_electron-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   }
 }
