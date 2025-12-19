@@ -44,7 +44,6 @@ An unofficial WhatsApp Web desktop client built with Electron for Windows and Li
 - Ctrl + Plus/Minus - Zoom in/out
 - Ctrl + 0 - Reset zoom
 - Ctrl + D - Toggle dark mode
-- Ctrl + T - Cycle through themes
 - Ctrl + M - Mute/unmute notifications
 - Ctrl + , - Focus search
 - Ctrl + N - New chat
@@ -88,13 +87,9 @@ npm run dist:win
 npm run dist
 ```
 
-## System Requirements
-- Windows 10 or later / Linux (any modern distribution)
-- 4GB RAM minimum
-- 150MB disk space
-
 ## License
 MIT
 
 ## Author
 Sanjay Davis
+
