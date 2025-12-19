@@ -4,16 +4,12 @@ const AutoLaunch = require('auto-launch');
 const Store = require('electron-store');
 const EventEmitter = require('events');
 EventEmitter.defaultMaxListeners = 20;
-
-// Disable sandbox for AppImage compatibility
 app.commandLine.appendSwitch('no-sandbox');
-
 const store = new Store();
 const autoLauncher = new AutoLaunch({
     name: 'Unofficial_WhatsApp',
     path: app.getPath('exe')
 });
-
 let win;
 let tray;
 let notificationsMuted = false;
@@ -22,7 +18,6 @@ let batterySaverMode = false;
 let alwaysOnTop = store.get('alwaysOnTop', false);
 let autoLaunchEnabled = store.get('autoLaunch', false);
 let spellCheckEnabled = store.get('spellCheck', true);
-
 function createWindow() {
     win = new BrowserWindow({
         width: 1000,
@@ -44,39 +39,29 @@ function createWindow() {
             backgroundThrottling: false
         }
     });
-
     win.setMenuBarVisibility(false);
     win.removeMenu();
-
     const userAgent =
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.78 Safari/537.36";
-
     win.loadURL("https://web.whatsapp.com", { userAgent });
-
     win.once('ready-to-show', () => {
         win.show();
     });
-
     win.webContents.session.on('will-download', (event, item, webContents) => {
         const fileName = item.getFilename();
         const downloadPath = path.join(app.getPath('downloads'), 'WhatsApp', fileName);
-        
-        // Create WhatsApp folder in Downloads if it doesn't exist
         const fs = require('fs');
         const downloadDir = path.join(app.getPath('downloads'), 'WhatsApp');
         if (!fs.existsSync(downloadDir)) {
             fs.mkdirSync(downloadDir, { recursive: true });
         }
-        
         item.setSavePath(downloadPath);
-        
         item.on('updated', (event, state) => {
             if (state === 'progressing') {
                 const progress = item.getReceivedBytes() / item.getTotalBytes();
                 win.setProgressBar(progress);
             }
         });
-        
         item.once('done', (event, state) => {
             win.setProgressBar(-1);
             if (state === 'completed') {
@@ -92,14 +77,11 @@ function createWindow() {
             }
         });
     });
-
-    //  Handle external links
     const { shell } = require('electron');
     win.webContents.setWindowOpenHandler(({ url }) => {
         shell.openExternal(url);
         return { action: 'deny' };
     });
-
     win.webContents.on('will-navigate', (event, url) => {
         const currentUrl = win.webContents.getURL();
         if (url !== currentUrl && !url.includes("web.whatsapp.com")) {
@@ -107,26 +89,20 @@ function createWindow() {
             shell.openExternal(url);
         }
     });
-
     win.on('close', (event) => {
         if (!app.isQuiting) {
             event.preventDefault();
             win.hide();
         }
     });
-
-    // IPC handler for notification clicks
     ipcMain.on('show-window-and-open-chat', (event, sender) => {
         if (win) {
             if (win.isMinimized()) win.restore();
             if (!win.isVisible()) win.show();
             win.focus();
-            // Send back to renderer to click the chat
             win.webContents.send('open-chat', sender);
         }
     });
-
-    // Register keyboard shortcuts for zoom
     win.webContents.on('before-input-event', (event, input) => {
         if (input.control) {
             if (input.key === '=' || input.key === '+') {
@@ -143,13 +119,11 @@ function createWindow() {
                 event.preventDefault();
             }
         }
-        // Screenshot capture: Ctrl+Shift+S
         if (input.control && input.shift && input.key.toLowerCase() === 's') {
             win.webContents.capturePage().then(image => {
                 const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
                 const screenshotPath = path.join(app.getPath('pictures'), `WhatsApp-Screenshot-${timestamp}.png`);
                 require('fs').writeFileSync(screenshotPath, image.toPNG());
-                
                 dialog.showMessageBox(win, {
                     type: 'info',
                     title: 'Screenshot Saved',
@@ -164,15 +138,12 @@ function createWindow() {
             event.preventDefault();
         }
     });
-
     createTray();
 }
-
 function createTray() {
     const iconPath = path.join(__dirname, 'icon_upscaled.png');
     const trayIcon = nativeImage.createFromPath(iconPath);
     tray = new Tray(trayIcon);
-
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Show WhatsApp',
@@ -268,10 +239,9 @@ function createTray() {
                         contextIsolation: true,
                         sandbox: false,
                         nodeIntegration: false,
-                        partition: 'persist:whatsapp-2' // Separate session for second account
+                        partition: 'persist:whatsapp-2' 
                     }
                 });
-                
                 const userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.78 Safari/537.36";
                 secondWin.loadURL("https://web.whatsapp.com", { userAgent });
                 secondWin.setMenuBarVisibility(false);
@@ -287,14 +257,11 @@ function createTray() {
             }
         }
     ]);
-
     tray.setToolTip("WhatsApp");
     tray.setContextMenu(contextMenu);
-
     tray.on('click', () => {
         win.isVisible() ? win.hide() : win.show();
     });
-
     setInterval(() => {
         if (win && win.webContents) {
             win.webContents.executeJavaScript(`
@@ -316,25 +283,17 @@ function createTray() {
         }
     }, 5000);
 }
-
-// Performance optimizations
 app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
 app.commandLine.appendSwitch('disable-software-rasterizer');
-
-// Single instance lock - prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
-
 if (!gotTheLock) {
-    // Another instance is already running, quit this one
     app.quit();
 } else {
-    // Handle second instance attempt
     app.on('second-instance', (event, commandLine, workingDirectory) => {
-        // Someone tried to run a second instance, focus our window instead
         if (win) {
             if (win.isMinimized()) win.restore();
             if (!win.isVisible()) win.show();
@@ -342,43 +301,32 @@ if (!gotTheLock) {
         }
     });
 }
-
-// Battery saver mode - reduce resource usage on battery
 app.whenReady().then(() => {
     powerMonitor.on('on-battery', () => {
         batterySaverMode = true;
         if (win && win.webContents) {
-            win.webContents.setFrameRate(30); // Lower frame rate to save battery
+            win.webContents.setFrameRate(30); 
         }
     });
-
     powerMonitor.on('on-ac', () => {
         batterySaverMode = false;
         if (win && win.webContents) {
-            win.webContents.setFrameRate(60); // Normal frame rate
+            win.webContents.setFrameRate(60); 
         }
     });
-
     createWindow();
 });
-
-// Memory management - clear cache periodically
 setInterval(() => {
     if (win && win.webContents) {
         const session = win.webContents.session;
         session.clearCache().catch(() => {});
-        
-        // Force garbage collection if memory is high
         if (global.gc && process.memoryUsage().heapUsed > 500 * 1024 * 1024) {
             global.gc();
         }
     }
-}, 30 * 60 * 1000); // Every 30 minutes
-
+}, 30 * 60 * 1000); 
 app.on('window-all-closed', () => {
-    // Do nothing so it stays in tray
 });
-
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

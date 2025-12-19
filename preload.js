@@ -1,32 +1,23 @@
 const { ipcRenderer } = require('electron');
-
 let notificationsMuted = false;
 let wasOnline = true;
 let dndMode = localStorage.getItem('dnd-mode') === 'true';
 let customSoundEnabled = localStorage.getItem('custom-sound') === 'true';
-
-// Load custom notification sound if exists
 let notificationSound = null;
 if (customSoundEnabled) {
     notificationSound = new Audio();
-    // You can replace this with a custom sound file path
     notificationSound.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGnOLyvmgcBjiR1/LMeSwFJ';
 }
-
 ipcRenderer.on('toggle-mute', (_event, value) => {
     notificationsMuted = value;
 });
-
-// Spoof WhatsApp-compatible environment
 Object.defineProperty(navigator, 'userAgent', {
     get: () =>
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.78 Safari/537.36"
 });
 Object.defineProperty(navigator, 'vendor', { get: () => "Google Inc." });
 Object.defineProperty(navigator, 'platform', { get: () => "Linux x86_64" });
-
 window.addEventListener('DOMContentLoaded', () => {
-    // 🎨 Custom Theme Support - Start with dark mode by default
     const customThemes = {
         dark: `
         html {
@@ -52,12 +43,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         `
     };
-
-    let currentTheme = localStorage.getItem('whatsapp-theme') || 'dark'; // Default to dark
-    
+    let currentTheme = localStorage.getItem('whatsapp-theme') || 'dark'; 
     const style = document.createElement("style");
     style.id = "custom-theme";
-    
     const applyTheme = (themeName) => {
         currentTheme = themeName;
         localStorage.setItem('whatsapp-theme', themeName);
@@ -71,8 +59,6 @@ window.addEventListener('DOMContentLoaded', () => {
             style.textContent = customThemes[themeName];
         }
     };
-
-    // 🌑 Dark Mode Toggle Button
     const button = document.createElement('button');
     button.innerText = "🌓";
     button.title = "Toggle Theme (Ctrl+D)";
@@ -91,36 +77,26 @@ window.addEventListener('DOMContentLoaded', () => {
     cursor: pointer;
     opacity: 0.7;
     `;
-
     button.onmouseenter = () => button.style.opacity = "1";
     button.onmouseleave = () => button.style.opacity = "0.7";
-
     const toggleDarkMode = () => {
         const newTheme = currentTheme === 'dark' ? 'classic' : 'dark';
         applyTheme(newTheme);
     };
-    
     button.onclick = toggleDarkMode;
-    
-    // Apply saved theme
     applyTheme(currentTheme);
     document.body.appendChild(button);
-
-    // ⌨️ Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
-        // Ctrl+D - Toggle Dark Mode
         if (e.ctrlKey && e.key === 'd') {
             e.preventDefault();
             toggleDarkMode();
         }
-        // Ctrl+T - Cycle through themes
         if (e.ctrlKey && e.key === 't') {
             e.preventDefault();
             const themes = ['dark', 'classic', 'blue', 'green'];
             const currentIndex = themes.indexOf(currentTheme);
             const nextTheme = themes[(currentIndex + 1) % themes.length];
             applyTheme(nextTheme);
-            
             const toast = document.createElement('div');
             toast.textContent = `🎨 Theme: ${nextTheme.charAt(0).toUpperCase() + nextTheme.slice(1)}`;
             toast.style.cssText = `
@@ -137,7 +113,6 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
         }
-        // Ctrl+M - Mute/Unmute (visual feedback)
         if (e.ctrlKey && e.key === 'm') {
             e.preventDefault();
             notificationsMuted = !notificationsMuted;
@@ -159,21 +134,17 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
         }
-        // Ctrl+, - Focus search
         if (e.ctrlKey && e.key === ',') {
             e.preventDefault();
             const searchBox = document.querySelector('[data-tab="3"]') || document.querySelector('input[type="text"]');
             if (searchBox) searchBox.click();
         }
-        // Ctrl+N - New chat
         if (e.ctrlKey && e.key === 'n') {
             e.preventDefault();
             const newChatBtn = document.querySelector('[data-icon="new-chat-outline"]')?.parentElement;
             if (newChatBtn) newChatBtn.click();
         }
     });
-
-    //  Drag & Drop File Upload
     document.addEventListener('dragover', event => event.preventDefault());
     document.addEventListener('drop', (event) => {
         event.preventDefault();
@@ -188,26 +159,18 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
-    //  Enhanced Notifications with message preview
     let lastCount = 0;
     let lastNotifiedMessages = new Set();
     let isFirstCheck = true;
-    
-    // Monitor for new messages
     const checkForNewMessages = () => {
         try {
-            // Get all unread chat elements
             const unreadChats = document.querySelectorAll('div[role="listitem"][aria-label*="unread"]');
-            
-            // On first check, just show the total count if there are unread messages
             if (isFirstCheck) {
                 const el = document.querySelector('title');
                 if (el) {
                     const match = el.textContent.match(/\((\d+)\)/);
                     const count = match ? parseInt(match[1]) : 0;
                     lastCount = count;
-                    
                     if (count > 0 && !notificationsMuted && !dndMode) {
                         new Notification("WhatsApp", {
                             body: `You have ${count} unread message(s)`,
@@ -217,12 +180,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         };
                     }
                 }
-                
-                // Mark all current messages as already seen
                 unreadChats.forEach(chat => {
                     const nameElement = chat.querySelector('span[dir="auto"][title]');
                     const messageElement = chat.querySelector('span.selectable-text[dir="ltr"]');
-                    
                     if (nameElement && messageElement) {
                         const sender = nameElement.getAttribute('title') || nameElement.textContent;
                         const message = messageElement.textContent;
@@ -230,46 +190,31 @@ window.addEventListener('DOMContentLoaded', () => {
                         lastNotifiedMessages.add(messageId);
                     }
                 });
-                
                 isFirstCheck = false;
                 return;
             }
-            
-            // After first check, only notify for NEW messages
             unreadChats.forEach(chat => {
-                // Extract sender name and last message
                 const nameElement = chat.querySelector('span[dir="auto"][title]');
                 const messageElement = chat.querySelector('span.selectable-text[dir="ltr"]');
-                
                 if (nameElement && messageElement) {
                     const sender = nameElement.getAttribute('title') || nameElement.textContent;
                     const message = messageElement.textContent;
                     const messageId = `${sender}:${message}`;
-                    
-                    // Only notify if this is a new message we haven't seen
                     if (!lastNotifiedMessages.has(messageId) && !notificationsMuted && !dndMode) {
                         lastNotifiedMessages.add(messageId);
-                        
-                        // Limit stored messages to prevent memory issues
                         if (lastNotifiedMessages.size > 50) {
                             const firstItem = lastNotifiedMessages.values().next().value;
                             lastNotifiedMessages.delete(firstItem);
                         }
-                        
-                        // Play custom sound if enabled
                         if (customSoundEnabled && notificationSound) {
                             notificationSound.play().catch(() => {});
                         }
-                        
-                        // Show notification with sender and message preview
                         const notification = new Notification(sender, {
                             body: message.length > 100 ? message.substring(0, 100) + '...' : message,
                             silent: !customSoundEnabled,
-                            tag: messageId // Prevent duplicate notifications
+                            tag: messageId 
                         });
-                        
                         notification.onclick = () => {
-                            // Tell main process to show window
                             ipcRenderer.send('show-window-and-open-chat', sender);
                         };
                     }
@@ -279,12 +224,9 @@ window.addEventListener('DOMContentLoaded', () => {
             console.error('Error checking messages:', err);
         }
     };
-    
-    // Listen for instruction to open specific chat
     ipcRenderer.on('open-chat', (event, sender) => {
         setTimeout(() => {
             try {
-                // Find and click the chat with matching sender
                 const chats = document.querySelectorAll('div[role="listitem"]');
                 for (const chat of chats) {
                     const nameElement = chat.querySelector('span[dir="auto"][title]');
@@ -299,9 +241,7 @@ window.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error('Error opening chat:', err);
             }
-        }, 500); // Small delay to ensure window is focused
+        }, 500); 
     });
-    
-    // Check every 2 seconds
     setInterval(checkForNewMessages, 2000);
 });
