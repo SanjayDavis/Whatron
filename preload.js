@@ -91,28 +91,6 @@ window.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             toggleDarkMode();
         }
-        if (e.ctrlKey && e.key === 't') {
-            e.preventDefault();
-            const themes = ['dark', 'classic', 'blue', 'green'];
-            const currentIndex = themes.indexOf(currentTheme);
-            const nextTheme = themes[(currentIndex + 1) % themes.length];
-            applyTheme(nextTheme);
-            const toast = document.createElement('div');
-            toast.textContent = `🎨 Theme: ${nextTheme.charAt(0).toUpperCase() + nextTheme.slice(1)}`;
-            toast.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #25d366;
-                color: white;
-                padding: 12px 20px;
-                border-radius: 8px;
-                z-index: 10000;
-                font-weight: bold;
-            `;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
-        }
         if (e.ctrlKey && e.key === 'm') {
             e.preventDefault();
             notificationsMuted = !notificationsMuted;
