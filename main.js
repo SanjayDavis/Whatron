@@ -2,10 +2,15 @@ const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, globalShortcut, po
 const path = require('path');
 const AutoLaunch = require('auto-launch');
 const Store = require('electron-store');
+const EventEmitter = require('events');
+EventEmitter.defaultMaxListeners = 20;
+
+// Disable sandbox for AppImage compatibility
+app.commandLine.appendSwitch('no-sandbox');
 
 const store = new Store();
 const autoLauncher = new AutoLaunch({
-    name: 'Unofficial WhatsApp',
+    name: 'Unofficial_WhatsApp',
     path: app.getPath('exe')
 });
 
@@ -23,7 +28,7 @@ function createWindow() {
         width: 1000,
         height: 800,
         icon: path.join(__dirname, 'icon_upscaled.png'),
-        show: false, // Don't show until ready for smoother startup
+        show: false,
         alwaysOnTop: alwaysOnTop,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -32,11 +37,11 @@ function createWindow() {
             nodeIntegration: false,
             enableRemoteModule: false,
             partition: 'persist:whatsapp',
-            // Performance optimizations
             spellcheck: spellCheckEnabled,
             enableWebSQL: false,
-            webgl: true, // Enable WebGL for hardware acceleration
-            experimentalFeatures: true
+            webgl: true,
+            experimentalFeatures: true,
+            backgroundThrottling: false
         }
     });
 
@@ -48,12 +53,10 @@ function createWindow() {
 
     win.loadURL("https://web.whatsapp.com", { userAgent });
 
-    // Show window when ready for smoother startup
     win.once('ready-to-show', () => {
         win.show();
     });
 
-    // Enhanced download manager
     win.webContents.session.on('will-download', (event, item, webContents) => {
         const fileName = item.getFilename();
         const downloadPath = path.join(app.getPath('downloads'), 'WhatsApp', fileName);
@@ -304,9 +307,30 @@ function createTray() {
 }
 
 // Performance optimizations
-app.commandLine.appendSwitch('disable-http-cache'); // Prevent excessive cache
-app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder'); // Hardware video decode
-app.commandLine.appendSwitch('disable-gpu-vsync'); // Reduce input lag
+app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+
+// Single instance lock - prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+    // Another instance is already running, quit this one
+    app.quit();
+} else {
+    // Handle second instance attempt
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        // Someone tried to run a second instance, focus our window instead
+        if (win) {
+            if (win.isMinimized()) win.restore();
+            if (!win.isVisible()) win.show();
+            win.focus();
+        }
+    });
+}
 
 // Battery saver mode - reduce resource usage on battery
 app.whenReady().then(() => {

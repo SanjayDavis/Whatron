@@ -27,7 +27,7 @@
   },
   "build": {
     "appId": "com.sanjaydavis.whatsapp-electron",
-    "productName": "Unofficial WhatsApp",
+    "productName": "Unofficial_WhatsApp",
     "directories": {
       "output": "dist"
     },
@@ -39,7 +39,6 @@
     ],
     "linux": {
       "target": [
-        "rpm",
         "AppImage",
         "deb"
       ],
@@ -51,6 +50,9 @@
         "Encoding": "UTF-8",
         "MimeType": "x-scheme-handler/whatsapp;"
       }
+    },
+    "appImage": {
+      "executableArgs": ["--no-sandbox"]
     },
     "rpm": {
       "fpm": [
