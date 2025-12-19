@@ -115,6 +115,17 @@ function createWindow() {
         }
     });
 
+    // IPC handler for notification clicks
+    ipcMain.on('show-window-and-open-chat', (event, sender) => {
+        if (win) {
+            if (win.isMinimized()) win.restore();
+            if (!win.isVisible()) win.show();
+            win.focus();
+            // Send back to renderer to click the chat
+            win.webContents.send('open-chat', sender);
+        }
+    });
+
     // Register keyboard shortcuts for zoom
     win.webContents.on('before-input-event', (event, input) => {
         if (input.control) {

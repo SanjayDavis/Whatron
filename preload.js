@@ -189,28 +189,119 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    //  Notifications
+    //  Enhanced Notifications with message preview
     let lastCount = 0;
-    setInterval(() => {
-        const el = document.querySelector('title');
-        if (!el) return;
-        const match = el.textContent.match(/\((\d+)\)/);
-        const count = match ? parseInt(match[1]) : 0;
-
-        if (count > lastCount && !notificationsMuted && !dndMode) {
-            // Play custom sound if enabled
-            if (customSoundEnabled && notificationSound) {
-                notificationSound.play().catch(() => {});
+    let lastNotifiedMessages = new Set();
+    let isFirstCheck = true;
+    
+    // Monitor for new messages
+    const checkForNewMessages = () => {
+        try {
+            // Get all unread chat elements
+            const unreadChats = document.querySelectorAll('div[role="listitem"][aria-label*="unread"]');
+            
+            // On first check, just show the total count if there are unread messages
+            if (isFirstCheck) {
+                const el = document.querySelector('title');
+                if (el) {
+                    const match = el.textContent.match(/\((\d+)\)/);
+                    const count = match ? parseInt(match[1]) : 0;
+                    lastCount = count;
+                    
+                    if (count > 0 && !notificationsMuted && !dndMode) {
+                        new Notification("WhatsApp", {
+                            body: `You have ${count} unread message(s)`,
+                            silent: true
+                        }).onclick = () => {
+                            window.focus();
+                        };
+                    }
+                }
+                
+                // Mark all current messages as already seen
+                unreadChats.forEach(chat => {
+                    const nameElement = chat.querySelector('span[dir="auto"][title]');
+                    const messageElement = chat.querySelector('span.selectable-text[dir="ltr"]');
+                    
+                    if (nameElement && messageElement) {
+                        const sender = nameElement.getAttribute('title') || nameElement.textContent;
+                        const message = messageElement.textContent;
+                        const messageId = `${sender}:${message}`;
+                        lastNotifiedMessages.add(messageId);
+                    }
+                });
+                
+                isFirstCheck = false;
+                return;
             }
             
-            new Notification("New WhatsApp Message", {
-                body: `You have ${count} unread message(s). Click to reply.`,
-                silent: !customSoundEnabled // Use system sound if custom is disabled
-            }).onclick = () => {
-                window.focus();
-            };
+            // After first check, only notify for NEW messages
+            unreadChats.forEach(chat => {
+                // Extract sender name and last message
+                const nameElement = chat.querySelector('span[dir="auto"][title]');
+                const messageElement = chat.querySelector('span.selectable-text[dir="ltr"]');
+                
+                if (nameElement && messageElement) {
+                    const sender = nameElement.getAttribute('title') || nameElement.textContent;
+                    const message = messageElement.textContent;
+                    const messageId = `${sender}:${message}`;
+                    
+                    // Only notify if this is a new message we haven't seen
+                    if (!lastNotifiedMessages.has(messageId) && !notificationsMuted && !dndMode) {
+                        lastNotifiedMessages.add(messageId);
+                        
+                        // Limit stored messages to prevent memory issues
+                        if (lastNotifiedMessages.size > 50) {
+                            const firstItem = lastNotifiedMessages.values().next().value;
+                            lastNotifiedMessages.delete(firstItem);
+                        }
+                        
+                        // Play custom sound if enabled
+                        if (customSoundEnabled && notificationSound) {
+                            notificationSound.play().catch(() => {});
+                        }
+                        
+                        // Show notification with sender and message preview
+                        const notification = new Notification(sender, {
+                            body: message.length > 100 ? message.substring(0, 100) + '...' : message,
+                            silent: !customSoundEnabled,
+                            tag: messageId // Prevent duplicate notifications
+                        });
+                        
+                        notification.onclick = () => {
+                            // Tell main process to show window
+                            ipcRenderer.send('show-window-and-open-chat', sender);
+                        };
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Error checking messages:', err);
         }
-
-        lastCount = count;
-    }, 5000);
+    };
+    
+    // Listen for instruction to open specific chat
+    ipcRenderer.on('open-chat', (event, sender) => {
+        setTimeout(() => {
+            try {
+                // Find and click the chat with matching sender
+                const chats = document.querySelectorAll('div[role="listitem"]');
+                for (const chat of chats) {
+                    const nameElement = chat.querySelector('span[dir="auto"][title]');
+                    if (nameElement) {
+                        const name = nameElement.getAttribute('title') || nameElement.textContent;
+                        if (name === sender) {
+                            chat.click();
+                            break;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error opening chat:', err);
+            }
+        }, 500); // Small delay to ensure window is focused
+    });
+    
+    // Check every 2 seconds
+    setInterval(checkForNewMessages, 2000);
 });
