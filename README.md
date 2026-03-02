@@ -93,6 +93,30 @@ npm run dist
 - 4GB RAM minimum
 - 150MB disk space
 
+## Uninstalling
+
+### Linux
+
+**AppImage** (no installer — just delete the file):
+```bash
+rm ~/Applications/Whatron*.AppImage
+rm -rf ~/.config/Unofficial\ WhatsApp
+```
+
+**.deb** (installed via dpkg/apt):
+```bash
+sudo apt remove unofficial-whatsapp
+# or
+sudo dpkg -r unofficial-whatsapp
+rm -rf ~/.config/Unofficial\ WhatsApp
+```
+
+Remove auto-launch entry if it was enabled:
+```bash
+rm -f ~/.config/autostart/Unofficial_WhatsApp.desktop
+```
+
+
 ## License
 MIT
 

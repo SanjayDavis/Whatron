@@ -1,4 +1,5 @@
 const { ipcRenderer } = require('electron');
+const logToMain = (...args) => ipcRenderer.send('renderer-log', ...args);
 let notificationsMuted = false;
 let wasOnline = true;
 let dndMode = localStorage.getItem('dnd-mode') === 'true';
@@ -150,12 +151,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     const count = match ? parseInt(match[1]) : 0;
                     lastCount = count;
                     if (count > 0 && !notificationsMuted && !dndMode) {
-                        new Notification("WhatsApp", {
+                        ipcRenderer.send('show-notification', {
+                            title: 'Unofficial WhatsApp',
                             body: `You have ${count} unread message(s)`,
-                            silent: true
-                        }).onclick = () => {
-                            window.focus();
-                        };
+                            silent: true,
+                            sender: null
+                        });
                     }
                 }
                 unreadChats.forEach(chat => {
@@ -187,14 +188,13 @@ window.addEventListener('DOMContentLoaded', () => {
                         if (customSoundEnabled && notificationSound) {
                             notificationSound.play().catch(() => {});
                         }
-                        const notification = new Notification(sender, {
+                        logToMain('Sending notification for:', sender);
+                        ipcRenderer.send('show-notification', {
+                            title: sender,
                             body: message.length > 100 ? message.substring(0, 100) + '...' : message,
                             silent: !customSoundEnabled,
-                            tag: messageId 
+                            sender: sender
                         });
-                        notification.onclick = () => {
-                            ipcRenderer.send('show-window-and-open-chat', sender);
-                        };
                     }
                 }
             });
@@ -203,23 +203,149 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     };
     ipcRenderer.on('open-chat', (event, sender) => {
-        setTimeout(() => {
+        logToMain('Received open-chat request for:', sender);
+        let attempts = 0;
+        const maxAttempts = 12;
+        const tryOpen = () => {
             try {
                 const chats = document.querySelectorAll('div[role="listitem"]');
+                logToMain(`Found ${chats.length} chats, searching for:`, sender);
                 for (const chat of chats) {
                     const nameElement = chat.querySelector('span[dir="auto"][title]');
                     if (nameElement) {
                         const name = nameElement.getAttribute('title') || nameElement.textContent;
                         if (name === sender) {
+                            logToMain('Found matching chat, clicking...');
                             chat.click();
-                            break;
+                            return;
                         }
                     }
                 }
             } catch (err) {
                 console.error('Error opening chat:', err);
+                return;
             }
-        }, 500); 
+            attempts += 1;
+            if (attempts < maxAttempts) {
+                setTimeout(tryOpen, 300);
+            } else {
+                logToMain('Failed to find chat after retries');
+            }
+        };
+        tryOpen();
     });
-    setInterval(checkForNewMessages, 2000);
+
+    // IPC handler for sending messages (quick reply)
+    ipcRenderer.on('send-message', (event, data) => {
+        logToMain('Received send-message request for:', data.sender, 'message:', data.message);
+        
+        // Find and click the chat
+        let attempts = 0;
+        const trySend = () => {
+            try {
+                const chats = document.querySelectorAll('div[role="listitem"]');
+                let chatFound = false;
+                
+                for (const chat of chats) {
+                    const nameElement = chat.querySelector('span[dir="auto"][title]');
+                    if (nameElement) {
+                        const name = nameElement.getAttribute('title') || nameElement.textContent;
+                        if (name === data.sender) {
+                            chat.click();
+                            chatFound = true;
+                            logToMain('Chat clicked, attempting to send message...');
+                            
+                            // Wait for chat to open, then send message
+                            setTimeout(() => {
+                                const messageBox = document.querySelector('div[contenteditable="true"][data-tab="10"]');
+                                if (messageBox) {
+                                    messageBox.focus();
+                                    messageBox.textContent = data.message;
+                                    
+                                    // Trigger input event
+                                    const inputEvent = new Event('input', { bubbles: true });
+                                    messageBox.dispatchEvent(inputEvent);
+                                    
+                                    // Find and click send button
+                                    setTimeout(() => {
+                                        const sendButton = document.querySelector('button[data-tab="11"]') || 
+                                                         document.querySelector('span[data-icon="send"]')?.closest('button');
+                                        if (sendButton) {
+                                            sendButton.click();
+                                            logToMain('Message sent successfully');
+                                        } else {
+                                            logToMain('Send button not found');
+                                        }
+                                    }, 300);
+                                } else {
+                                    logToMain('Message box not found');
+                                }
+                            }, 800);
+                            return;
+                        }
+                    }
+                }
+                
+                if (!chatFound) {
+                    attempts++;
+                    if (attempts < 10) {
+                        setTimeout(trySend, 300);
+                    } else {
+                        logToMain('Failed to find chat for sending message');
+                    }
+                }
+            } catch (err) {
+                logToMain('Error sending message:', err.message);
+            }
+        };
+        
+        trySend();
+    });
+
+    // PERF-1 / LEAK-5 fix: Replace setInterval(checkForNewMessages, 2000) with a MutationObserver.
+    // The old approach ran 43,200 DOM queries/day even when the window was hidden.
+    // The observer fires only when the chat list DOM actually changes, and is
+    // gated on document.visibilityState so it does nothing while the window is hidden.
+    let chatObserver = null;
+
+    const attachObserver = () => {
+        // WhatsApp Web renders the chat list inside #pane-side
+        const pane = document.querySelector('#pane-side') ||
+                      document.querySelector('[aria-label="Chat list"]') ||
+                      document.querySelector('[data-asset-intro-image-light]')?.closest('[role="navigation"]');
+        if (!pane) return false;
+
+        if (chatObserver) chatObserver.disconnect();
+        chatObserver = new MutationObserver(() => {
+            if (document.visibilityState !== 'hidden') {
+                checkForNewMessages();
+            }
+        });
+        chatObserver.observe(pane, { childList: true, subtree: true });
+        logToMain('MutationObserver attached to chat list');
+        return true;
+    };
+
+    // Retry until the SPA mounts the chat list
+    let observerRetries = 0;
+    const tryAttach = () => {
+        if (attachObserver()) return;
+        if (++observerRetries < 30) {
+            setTimeout(tryAttach, 1000);
+        } else {
+            // Fallback: longer interval so at least we don't miss messages entirely
+            logToMain('MutationObserver: chat list not found, falling back to 5 s interval');
+            setInterval(checkForNewMessages, 5000);
+        }
+    };
+    tryAttach();
+
+    // Re-check immediately whenever the user switches back to this tab/window
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            checkForNewMessages();
+            // Re-attach observer in case the SPA replaced the container
+            if (!chatObserver) tryAttach();
+        }
+    });
 });

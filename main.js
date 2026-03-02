@@ -1,17 +1,53 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, globalShortcut, powerMonitor, dialog, shell, Notification } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, powerMonitor, dialog, shell } = require('electron');
 const path = require('path');
 const AutoLaunch = require('auto-launch');
 const Store = require('electron-store');
 const EventEmitter = require('events');
+const windowManager = require('./windowManager');
+const customNotifier = require('./customNotifier');
+
 EventEmitter.defaultMaxListeners = 20;
-app.commandLine.appendSwitch('no-sandbox');
+
+// Only disable sandbox for AppImage builds — electron-builder passes --no-sandbox via executableArgs.
+// Applying it globally is a security regression; do NOT add it here unconditionally.
+
+// Set app name for notifications
+app.setName('Unofficial WhatsApp');
+if (process.platform === 'win32') {
+    app.setAppUserModelId('com.sanjaydavis.whatsapp-electron');
+}
+
 const store = new Store();
 const autoLauncher = new AutoLaunch({
     name: 'Unofficial_WhatsApp',
     path: app.getPath('exe')
 });
+
+// ── Global error guards (STAB-1) ─────────────────────────────────────────
+process.on('uncaughtException', (err) => {
+    console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('[unhandledRejection]', reason);
+});
+
+// Safe wrapper for shell.openExternal — only allow http(s) and mailto (SEC-2)
+function safeOpenExternal(url) {
+    try {
+        const parsed = new URL(url);
+        if (['https:', 'http:', 'mailto:'].includes(parsed.protocol)) {
+            shell.openExternal(url);
+        } else {
+            console.warn('[safeOpenExternal] Blocked URL with protocol:', parsed.protocol);
+        }
+    } catch {
+        console.warn('[safeOpenExternal] Invalid URL:', url);
+    }
+}
+
 let win;
 let tray;
+let trayTooltipInterval = null;
 let notificationsMuted = false;
 let currentZoom = 1.0;
 let batterySaverMode = false;
@@ -19,34 +55,16 @@ let alwaysOnTop = store.get('alwaysOnTop', false);
 let autoLaunchEnabled = store.get('autoLaunch', false);
 let spellCheckEnabled = store.get('spellCheck', true);
 function createWindow() {
-    win = new BrowserWindow({
-        width: 1000,
-        height: 800,
-        icon: path.join(__dirname, 'icon_upscaled.png'),
-        show: false,
-        alwaysOnTop: alwaysOnTop,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true,
-            sandbox: false,
-            nodeIntegration: false,
-            enableRemoteModule: false,
-            partition: 'persist:whatsapp',
-            spellcheck: spellCheckEnabled,
-            enableWebSQL: false,
-            webgl: true,
-            experimentalFeatures: true,
-            backgroundThrottling: false
-        }
-    });
-    win.setMenuBarVisibility(false);
-    win.removeMenu();
-    const userAgent =
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.78 Safari/537.36";
-    win.loadURL("https://web.whatsapp.com", { userAgent });
-    win.once('ready-to-show', () => {
-        win.show();
-    });
+    // Use window manager to create window
+    win = windowManager.createMainWindow(store, alwaysOnTop, spellCheckEnabled);
+    
+    setupWindowHandlers();
+    setupIPCHandlers();
+    createTray();
+}
+
+function setupWindowHandlers() {
+    // Download handler
     win.webContents.session.on('will-download', (event, item, webContents) => {
         const fileName = item.getFilename();
         const downloadPath = path.join(app.getPath('downloads'), 'WhatsApp', fileName);
@@ -65,44 +83,43 @@ function createWindow() {
         item.once('done', (event, state) => {
             win.setProgressBar(-1);
             if (state === 'completed') {
-                const notification = new Notification({
+                // CRASH-1 fix: use customNotifier (imported), not notificationHandler (was never imported)
+                customNotifier.showNotification({
                     title: 'Download Complete',
-                    body: `${fileName} saved to WhatsApp folder`,
-                    silent: false
+                    message: `${fileName} saved to WhatsApp folder`,
+                    sender: null,
+                    duration: 6000,
+                    onClick: () => shell.showItemInFolder(downloadPath)
                 });
-                notification.on('click', () => {
-                    shell.showItemInFolder(downloadPath);
-                });
-                notification.show();
             }
         });
     });
-    const { shell } = require('electron');
+
+    // WhatsApp link handler
+    const isWhatsAppLink = (url) => {
+        return url.includes('web.whatsapp.com') || 
+               url.includes('wa.me') || 
+               url.includes('whatsapp.com') ||
+               url.startsWith('whatsapp://');
+    };
+    
     win.webContents.setWindowOpenHandler(({ url }) => {
-        shell.openExternal(url);
+        if (isWhatsAppLink(url)) {
+            return { action: 'allow' };
+        }
+        safeOpenExternal(url); // SEC-2: validated before opening
         return { action: 'deny' };
     });
+    
     win.webContents.on('will-navigate', (event, url) => {
         const currentUrl = win.webContents.getURL();
-        if (url !== currentUrl && !url.includes("web.whatsapp.com")) {
+        if (url !== currentUrl && !isWhatsAppLink(url)) {
             event.preventDefault();
-            shell.openExternal(url);
+            safeOpenExternal(url); // SEC-2: validated before opening
         }
     });
-    win.on('close', (event) => {
-        if (!app.isQuiting) {
-            event.preventDefault();
-            win.hide();
-        }
-    });
-    ipcMain.on('show-window-and-open-chat', (event, sender) => {
-        if (win) {
-            if (win.isMinimized()) win.restore();
-            if (!win.isVisible()) win.show();
-            win.focus();
-            win.webContents.send('open-chat', sender);
-        }
-    });
+
+    // Keyboard shortcuts
     win.webContents.on('before-input-event', (event, input) => {
         if (input.control) {
             if (input.key === '=' || input.key === '+') {
@@ -138,7 +155,39 @@ function createWindow() {
             event.preventDefault();
         }
     });
-    createTray();
+}
+
+function setupIPCHandlers() {
+    // IPC handler for showing window and opening chat
+    ipcMain.on('show-window-and-open-chat', (event, sender) => {
+        console.log('[IPC] show-window-and-open-chat received for:', sender);
+        windowManager.showWindowAndOpenChat(sender);
+    });
+
+    // IPC handler for renderer logs
+    ipcMain.on('renderer-log', (_event, ...args) => {
+        console.log('[renderer]', ...args);
+    });
+
+    // IPC handler for showing notifications (NEW - Custom HTML Notifier)
+    ipcMain.on('show-notification', (event, data) => {
+        console.log('[IPC] show-notification request:', data.title);
+        
+        customNotifier.showNotification({
+            title: data.title,
+            message: data.body || data.message || '',
+            sender: data.sender,
+            duration: 8000,
+            onClick: (sender) => {
+                console.log('[IPC] Notification clicked for sender:', sender);
+                if (sender) {
+                    windowManager.showWindowAndOpenChat(sender);
+                } else {
+                    windowManager.showWindow();
+                }
+            }
+        });
+    });
 }
 function createTray() {
     const iconPath = path.join(__dirname, 'icon_upscaled.png');
@@ -147,7 +196,7 @@ function createTray() {
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Show WhatsApp',
-            click: () => win.show()
+            click: () => windowManager.showWindow()
         },
         { type: 'separator' },
         {
@@ -260,9 +309,15 @@ function createTray() {
     tray.setToolTip("WhatsApp");
     tray.setContextMenu(contextMenu);
     tray.on('click', () => {
-        win.isVisible() ? win.hide() : win.show();
+        if (win.isVisible()) {
+            windowManager.hideWindow();
+        } else {
+            windowManager.showWindow();
+        }
     });
-    setInterval(() => {
+    // LEAK-2: store interval ID so it can be cleared on app quit
+    if (trayTooltipInterval) clearInterval(trayTooltipInterval);
+    trayTooltipInterval = setInterval(() => {
         if (win && win.webContents) {
             win.webContents.executeJavaScript(`
             (() => {
@@ -283,22 +338,20 @@ function createTray() {
         }
     }, 5000);
 }
-app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
+// STAB-8: VaapiVideoDecoder renamed to VaapiVideoDecodeLinuxGL in newer Chromium;
+//         UseChromeOSDirectVideoDecoder was removed and causes GPU process crash on some Mesa.
+//         Keep only the safe, non-deprecated flags.
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('disable-features', 'UseChromeOSDirectVideoDecoder');
 app.commandLine.appendSwitch('disable-software-rasterizer');
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
     app.quit();
 } else {
     app.on('second-instance', (event, commandLine, workingDirectory) => {
-        if (win) {
-            if (win.isMinimized()) win.restore();
-            if (!win.isVisible()) win.show();
-            win.focus();
-        }
+        console.log('Second instance detected, showing window');
+        windowManager.showWindow();
     });
 }
 app.whenReady().then(() => {
@@ -315,16 +368,23 @@ app.whenReady().then(() => {
         }
     });
     createWindow();
-});
-setInterval(() => {
-    if (win && win.webContents) {
-        const session = win.webContents.session;
-        session.clearCache().catch(() => {});
-        if (global.gc && process.memoryUsage().heapUsed > 500 * 1024 * 1024) {
-            global.gc();
+
+    // LEAK-3: cache clear interval must be inside whenReady, and stored for cleanup
+    const cacheInterval = setInterval(() => {
+        if (win && !win.isDestroyed() && win.webContents) {
+            // Only clear HTTP cache (not storage/cookies) to avoid forcing media re-downloads
+            win.webContents.session.clearCache().catch(() => {});
+            if (global.gc && process.memoryUsage().heapUsed > 500 * 1024 * 1024) {
+                global.gc();
+            }
         }
-    }
-}, 30 * 60 * 1000); 
+    }, 30 * 60 * 1000);
+
+    app.on('before-quit', () => {
+        clearInterval(cacheInterval);
+        if (trayTooltipInterval) clearInterval(trayTooltipInterval);
+    });
+});
 app.on('window-all-closed', () => {
 });
 app.on('activate', () => {
