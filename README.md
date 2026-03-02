@@ -44,7 +44,6 @@ An unofficial WhatsApp Web desktop client built with Electron for Windows and Li
 - Ctrl + Plus/Minus - Zoom in/out
 - Ctrl + 0 - Reset zoom
 - Ctrl + D - Toggle dark mode
-- Ctrl + T - Cycle through themes
 - Ctrl + M - Mute/unmute notifications
 - Ctrl + , - Focus search
 - Ctrl + N - New chat
@@ -87,38 +86,9 @@ npm run dist:win
 ```bash
 npm run dist
 ```
-
-## System Requirements
-- Windows 10 or later / Linux (any modern distribution)
-- 4GB RAM minimum
-- 150MB disk space
-
-## Uninstalling
-
-### Linux
-
-**AppImage** (no installer — just delete the file):
-```bash
-rm ~/Applications/Whatron*.AppImage
-rm -rf ~/.config/Unofficial\ WhatsApp
-```
-
-**.deb** (installed via dpkg/apt):
-```bash
-sudo apt remove unofficial-whatsapp
-# or
-sudo dpkg -r unofficial-whatsapp
-rm -rf ~/.config/Unofficial\ WhatsApp
-```
-
-Remove auto-launch entry if it was enabled:
-```bash
-rm -f ~/.config/autostart/Unofficial_WhatsApp.desktop
-```
-
-
 ## License
 MIT
 
 ## Author
 Sanjay Davis
+
