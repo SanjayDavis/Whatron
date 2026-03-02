@@ -8,7 +8,7 @@
   },
   "license": "MIT",
   "homepage": "https://github.com/SanjayDavis/Whatsapp_Electron",
-  "main": "main.js",
+  "main": "app-main.js",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --linux",
@@ -35,7 +35,7 @@
       "!node_modules/**/electron-builder",
       "!node_modules/**/electron-updater",
       "!node_modules/**/electron-debug",
-      "professionalNotificationSystem.js"
+      "notification-system.js"
     ],
     "linux": {
       "target": [
@@ -43,12 +43,13 @@
         "deb"
       ],
       "category": "Network",
-      "icon": "icon_upscaled.png",
+      "icon": "build/icons",
       "artifactName": "whatsapp_electron-${version}.${ext}",
       "desktop": {
         "StartupNotify": "false",
         "Encoding": "UTF-8",
-        "MimeType": "x-scheme-handler/whatsapp;"
+        "MimeType": "x-scheme-handler/whatsapp;",
+        "StartupWMClass": "Unofficial WhatsApp"
       }
     },
     "appImage": {
@@ -70,7 +71,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "icon.ico",
+      "icon": "assets/icons/icon.ico",
       "artifactName": "whatsapp_electron-${version}.${ext}"
     },
     "nsis": {

@@ -3,15 +3,18 @@ const path = require('path');
 const AutoLaunch = require('auto-launch');
 const Store = require('electron-store');
 const EventEmitter = require('events');
-const windowManager = require('./windowManager');
-const customNotifier = require('./customNotifier');
+const windowManager = require('./window-manager');
+const customNotifier = require('./custom-notifier');
 
 EventEmitter.defaultMaxListeners = 20;
 
-// Only disable sandbox for AppImage builds — electron-builder passes --no-sandbox via executableArgs.
-// Applying it globally is a security regression; do NOT add it here unconditionally.
+const fs = require('fs');
+try {
+    const gpuCache = path.join(app.getPath('userData'), 'GPUCache');
+    if (fs.existsSync(gpuCache)) fs.rmSync(gpuCache, { recursive: true, force: true });
+} catch {}
+app.commandLine.appendSwitch('disk-cache-dir', path.join(app.getPath('userData'), 'Cache'));
 
-// Set app name for notifications
 app.setName('Unofficial WhatsApp');
 if (process.platform === 'win32') {
     app.setAppUserModelId('com.sanjaydavis.whatsapp-electron');
@@ -190,7 +193,7 @@ function setupIPCHandlers() {
     });
 }
 function createTray() {
-    const iconPath = path.join(__dirname, 'icon_upscaled.png');
+    const iconPath = path.join(__dirname, 'assets', 'icons', 'icon_upscaled.png');
     const trayIcon = nativeImage.createFromPath(iconPath);
     tray = new Tray(trayIcon);
     const contextMenu = Menu.buildFromTemplate([
@@ -282,9 +285,9 @@ function createTray() {
                 const secondWin = new BrowserWindow({
                     width: 1000,
                     height: 800,
-                    icon: path.join(__dirname, 'icon_upscaled.png'),
+                    icon: path.join(__dirname, 'assets', 'icons', 'icon_upscaled.png'),
                     webPreferences: {
-                        preload: path.join(__dirname, 'preload.js'),
+                        preload: path.join(__dirname, 'app-preload.js'),
                         contextIsolation: true,
                         sandbox: false,
                         nodeIntegration: false,

@@ -29,7 +29,7 @@ class ProfessionalNotificationSystem extends EventEmitter {
      */
     loadAppIcon() {
         try {
-            const iconPath = path.join(__dirname, 'icon_upscaled.png');
+            const iconPath = path.join(__dirname, 'assets', 'icons', 'icon_upscaled.png');
             this.appIcon = iconPath;
             console.log('[ProfessionalNotification] App icon loaded:', iconPath);
         } catch (error) {

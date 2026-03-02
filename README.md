@@ -67,6 +67,28 @@ Download the appropriate package:
 - `.rpm` for Fedora/RHEL
 - `.AppImage` for universal Linux support
 
+## Uninstallation
+
+### Windows
+1. Open **Settings > Apps > Installed apps**
+2. Find **Unofficial WhatsApp** (or WhatsApp Electron)
+3. Click **Uninstall**
+4. (Optional) Remove leftover app data from:
+	 - `%APPDATA%/Unofficial_WhatsApp`
+	 - `%LOCALAPPDATA%/Unofficial_WhatsApp`
+
+### Linux
+- If installed via `.deb`:
+	- `sudo apt remove whatsapp-electron`
+- If installed via `.rpm`:
+	- `sudo dnf remove whatsapp-electron`
+- If using AppImage:
+	- Delete the AppImage file and any launcher shortcut you created
+
+Optional cleanup of user data:
+- `~/.config/Unofficial_WhatsApp`
+- `~/.cache/Unofficial_WhatsApp`
+
 ## Development
 
 ### Run Locally

@@ -8,11 +8,11 @@ function createMainWindow(store, alwaysOnTop, spellCheckEnabled) {
     mainWindow = new BrowserWindow({
         width: 1000,
         height: 800,
-        icon: path.join(__dirname, 'icon_upscaled.png'),
+        icon: path.join(__dirname, 'assets', 'icons', 'icon_upscaled.png'),
         show: false,
         alwaysOnTop: alwaysOnTop,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, 'app-preload.js'),
             contextIsolation: true,
             sandbox: true,          // SEC-3: sandbox:false was unnecessary; preload only uses ipcRenderer
             nodeIntegration: false,

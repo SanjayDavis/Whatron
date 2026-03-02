@@ -1,6 +1,6 @@
 const notifier = require('node-notifier');
 const path = require('path');
-const { showWindowAndOpenChat } = require('./windowManager');
+const { showWindowAndOpenChat } = require('./window-manager');
 
 // Store active notification data for click handling
 const activeNotifications = new Map();
@@ -31,7 +31,7 @@ function createNotification(data) {
     const notificationOptions = {
         title: data.title,
         message: data.body,
-        icon: path.join(__dirname, 'icon_upscaled.png'),
+        icon: path.join(__dirname, 'assets', 'icons', 'icon_upscaled.png'),
         sound: !data.silent,
         wait: true, // Wait for user interaction
         appID: 'com.sanjaydavis.whatsapp-electron',
@@ -92,7 +92,7 @@ function handleNotificationReply(sender, replyText) {
     console.log('handleNotificationReply called for:', sender, 'message:', replyText);
     
     // Show window and open chat
-    const windowManager = require('./windowManager');
+    const windowManager = require('./window-manager');
     const win = windowManager.getMainWindow();
     
     if (win && !win.isDestroyed()) {

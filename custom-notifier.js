@@ -30,7 +30,7 @@ function showNotification(options) {
         alwaysOnTop: true,
         skipTaskbar: true,
         webPreferences: {
-            preload: path.join(__dirname, 'notificationPreload.js'),
+            preload: path.join(__dirname, 'notification-preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true
