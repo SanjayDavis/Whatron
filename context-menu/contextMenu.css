@@ -1,0 +1,98 @@
+/* context-menu/contextMenu.css
+   Native-feeling context menu — dark theme matching WhatsApp sidebar.
+   All styles are scoped under #__wt-ctx-menu to avoid collisions.
+*/
+
+#__wt-ctx-menu {
+    position: fixed;
+    z-index: 2147483647; /* max z-index */
+    min-width: 180px;
+    max-width: 280px;
+    background: #233138;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.45),
+        0 10px 24px -4px rgba(0, 0, 0, 0.35);
+    padding: 4px 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    color: #e9edef;
+    user-select: none;
+    outline: none;
+    animation: __wt-ctx-in 0.09s ease-out;
+}
+
+@keyframes __wt-ctx-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1);    }
+}
+
+/* Menu item */
+#__wt-ctx-menu .ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    cursor: default;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 3px;
+    margin: 0 2px;
+    transition: background 0.08s ease;
+    line-height: 1.45;
+}
+
+#__wt-ctx-menu .ctx-item:hover,
+#__wt-ctx-menu .ctx-item:focus {
+    background: rgba(0, 168, 132, 0.18);
+    color: #e9edef;
+    outline: none;
+}
+
+#__wt-ctx-menu .ctx-item.ctx-disabled {
+    color: #566b76;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Icon (SVG inline via innerHTML) */
+#__wt-ctx-menu .ctx-icon {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.65;
+    color: #8696a0;
+}
+
+#__wt-ctx-menu .ctx-item:hover .ctx-icon,
+#__wt-ctx-menu .ctx-item:focus .ctx-icon {
+    opacity: 0.9;
+}
+
+/* Separator */
+#__wt-ctx-menu .ctx-sep {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 4px 0;
+}
+
+/* Label */
+#__wt-ctx-menu .ctx-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Section header (muted, small) */
+#__wt-ctx-menu .ctx-header {
+    padding: 5px 14px 2px;
+    font-size: 10.5px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #566b76;
+}

@@ -1,17 +1,17 @@
+'use strict';
+
 const { contextBridge, ipcRenderer } = require('electron');
 
-let notificationChannel = null;
+let ch = {};
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    notificationClicked: (sender) => {
-        console.log('notificationClicked called with sender:', sender);
-        if (notificationChannel) {
-            ipcRenderer.send(notificationChannel, sender);
-        }
-    }
+    openFile:     () => ch.open    && ipcRenderer.send(ch.open),
+    showInFolder: () => ch.folder  && ipcRenderer.send(ch.folder),
+    dismiss:      () => ch.dismiss && ipcRenderer.send(ch.dismiss),
 });
 
-ipcRenderer.on('set-notification-channel', (event, channel) => {
-    console.log('Notification channel set:', channel);
-    notificationChannel = channel;
+ipcRenderer.on('notif-init', (_e, { chOpen, chFolder, chDismiss, duration }) => {
+    ch = { open: chOpen, folder: chFolder, dismiss: chDismiss };
+    if (window.__notifReady) window.__notifReady(duration);
 });
+
