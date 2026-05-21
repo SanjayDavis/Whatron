@@ -1,116 +1,108 @@
-# WhatsApp Electron
+# Whatron
 
-An unofficial WhatsApp Web desktop client built with Electron for Windows and Linux.
+An unofficial WhatsApp Web desktop client built with pure Go and native webviews for Windows, Linux, and macOS.
 
-> This is not affiliated with WhatsApp or Meta. It wraps https://web.whatsapp.com in a native desktop application.
+> This is not affiliated with WhatsApp or Meta. It wraps https://web.whatsapp.com in a highly optimized native desktop application.
+
+## Why Whatron? (Pros vs. Official App)
+
+The official WhatsApp Desktop app and other wrappers use Electron or heavily bloated frameworks, which consume massive system resources. Whatron was rewritten to use **pure Go** and the OS's native webview engine (WebView2 on Windows, WebKitGTK on Linux, Cocoa on macOS).
+
+### Pros
+- **Incredible Memory Efficiency**: RAM usage is drastically reduced. While Electron-based WhatsApp wrappers typically consume **600MB+** of RAM, Whatron runs at around **6 to 7 MB** on Windows!
+- **Lightning Fast**: Blazing fast startup times and zero UI lag compared to Electron clients.
+- **Native OS Integration**: Uses native system toasts for notifications instead of heavy custom DOM popups. Deeply integrates with the OS protocol handler to flawlessly open chats when clicked.
+- **Microscopic Binary Size**: The entire application is a tiny compiled executable without an embedded Chromium engine.
+- **Multi-Account Support**: Easily run a second instance isolated from the first using the `--second-account` flag.
+
+### Cons
+- **Platform Webview Dependency**: Requires the host OS to have its native webview engine installed (WebView2 is pre-installed on Windows 10/11, Webkit2GTK is required on Linux).
 
 ## Features
 
 ### Interface & Display
-- System tray integration with minimize to tray
-- Always-on-top window mode
-- Customizable themes (Dark, Classic, Blue, Green)
-- Dark mode enabled by default
-- Zoom controls (zoom in/out/reset)
-- Custom window icon
-
-### Performance & Optimization
-- Hardware acceleration with GPU rendering
-- Memory management with automatic cache clearing
-- Battery saver mode (reduced frame rate on battery power)
-- Optimized startup with lazy loading
-- Hardware video decoding
-
-### Notifications & Alerts
-- Desktop notifications for new messages
-- Mute/unmute notifications toggle
-- Custom notification sounds support
-- Notification count display in system tray
+- Custom Dark theme injected natively (can switch to other themes with `Ctrl + D`)
+- System tray integration with unread message counter
+- Responsive window sizing with native zooming (`Ctrl +`, `Ctrl -`, `Ctrl 0`)
+- Deep-link focus switching (automatically snapping to chats when clicking notifications)
 
 ### File Management
-- Drag-and-drop file upload
-- Enhanced download manager
-- Downloads organized in dedicated WhatsApp folder
-- Download progress indicator
-- Screenshot capture tool
+- Automatic file downloads organized in a dedicated WhatsApp folder
+- Native drag-and-drop file upload support
+- Native context menu for images, links, and text selection
 
-### Productivity Features
-- Spell checker (toggle on/off)
-- Multiple account support (separate windows)
-- Auto-launch on system startup
-- Keyboard shortcuts for common actions
+### Protocol Handler
+- Seamlessly handles `whatsapp://` links from your system browser
+- Support for `https://wa.me/` and `https://chat.whatsapp.com/` links
+- Automatically switches window focus and navigates to the specific chat
 
-### Keyboard Shortcuts
-- Ctrl + Plus/Minus - Zoom in/out
-- Ctrl + 0 - Reset zoom
-- Ctrl + D - Toggle dark mode
-- Ctrl + M - Mute/unmute notifications
-- Ctrl + , - Focus search
-- Ctrl + N - New chat
-- Ctrl + Shift + S - Take screenshot
+## Prerequisites
 
-## Download
-
-[Get the latest release here](https://github.com/SanjayDavis/Whatsapp_Electron/releases)
+- **Go** 1.22 or higher
+- **Windows**: Built-in WebView2
+- **Linux**: `libwebkit2gtk-4.0-dev` (or `webkit2gtk-4.1` on some distros), `gcc`, `pkg-config`
 
 ## Installation
 
-### Windows
-1. Download `whatsapp_electron-1.0.0.exe` from releases
-2. Run the installer
-3. Choose installation directory
-4. Launch from desktop or start menu
+### 1-Click Installers (Recommended)
 
-### Linux
-Download the appropriate package:
-- `.deb` for Debian/Ubuntu
-- `.rpm` for Fedora/RHEL
-- `.AppImage` for universal Linux support
-
-## Uninstallation
-
-### Windows
-1. Open **Settings > Apps > Installed apps**
-2. Find **Unofficial WhatsApp** (or WhatsApp Electron)
-3. Click **Uninstall**
-4. (Optional) Remove leftover app data from:
-	 - `%APPDATA%/Unofficial_WhatsApp`
-	 - `%LOCALAPPDATA%/Unofficial_WhatsApp`
-
-### Linux
-- If installed via `.deb`:
-	- `sudo apt remove whatsapp-electron`
-- If installed via `.rpm`:
-	- `sudo dnf remove whatsapp-electron`
-- If using AppImage:
-	- Delete the AppImage file and any launcher shortcut you created
-
-Optional cleanup of user data:
-- `~/.config/Unofficial_WhatsApp`
-- `~/.cache/Unofficial_WhatsApp`
-
-## Development
-
-### Run Locally
+**Linux:**
 ```bash
-git clone https://github.com/SanjayDavis/Whatsapp_Electron.git
-cd Whatsapp_Electron
-npm install
-npm start
+curl -sL https://raw.githubusercontent.com/SanjayDavis/Whatron/main/install.sh | bash
 ```
 
-### Build for Windows
-```bash
-npm run dist:win
+**Windows (PowerShell as Admin):**
+```powershell
+Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/SanjayDavis/Whatron/main/install.ps1" -UseBasicParsing).Content
 ```
 
-### Build for Linux
+### Manual Installation
+
+1. Clone the Repository:
 ```bash
-npm run dist
+git clone https://github.com/SanjayDavis/Whatron.git
+cd Whatron
 ```
+
+2. Build the binary:
+```bash
+# Windows
+go build -ldflags "-H=windowsgui" -o Whatron.exe .
+
+# Linux/macOS
+go build -o whatron .
+```
+
+## Usage
+
+### Opening WhatsApp Links
+
+After building and installing the app, the protocol handler is automatically registered on first launch. You can:
+
+1. Click `whatsapp://` links in your browser (e.g., Brave, Chrome, Firefox) - they will open in Whatron
+2. Click `https://wa.me/PHONE` links - they will open the corresponding chat
+3. Click `https://chat.whatsapp.com/INVITE_CODE` links - they will open community join pages
+
+### Manual URL Opening
+
+You can also open Whatron with a URL directly from the command line:
+
+```bash
+./whatron "https://wa.me/1234567890"
+./whatron "https://chat.whatsapp.com/ABC123"
+./whatron "whatsapp://send?phone=1234567890"
+```
+
+## Keyboard Shortcuts
+
+- `Ctrl + D`: Toggle Dark / Classic Mode
+- `Ctrl + M`: Mute / Unmute Notifications
+- `Ctrl + N`: New Chat
+- `Ctrl + ,`: Focus Search Box
+- `Ctrl + =` / `Ctrl + -` / `Ctrl + 0`: Zoom controls
+
 ## License
 MIT
 
 ## Author
 Sanjay Davis
-

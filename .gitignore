@@ -1,3 +1,7 @@
 dist
 node_modules
 backup_files
+.env
+build
+.vscode
+build.ps1
